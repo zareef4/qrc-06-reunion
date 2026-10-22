@@ -347,6 +347,7 @@
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
   }
+  .pill-check { display: flex; align-items: center; gap: .6rem; cursor: pointer; font-size: .95rem; }
   .summary-total { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; font-weight: 700; }
   .summary-total strong { font-family: var(--display); font-size: 1.6rem; color: var(--navy); }
   .summary-lines { margin-top: .35rem; color: var(--muted); font-size: .95rem; }
@@ -522,6 +523,10 @@
             <span class="opt-price" data-price="lime"></span>
           </label>
 
+          <div class="opt-extra" id="paid-extra" hidden>
+            <label class="pill-check"><input type="checkbox" name="paidlast"> I paid for the last lime</label>
+          </div>
+
           <label class="opt">
             <input type="checkbox" name="jersey">
             <span><span class="opt-title">The jersey</span><span class="opt-desc">Class of ’06 football kit. Pay by 27 October.</span></span>
@@ -590,7 +595,9 @@
 
     target: 7500,                          // project goal
     currency: "$",                         // change to "TT$" or "US$" if you want to be explicit
-    prices: { lime: 100, jersey: 200 },    // keep in sync with PRICES in Code.gs
+    prices: { lime: 100, jersey: 200 },
+    paidLastCredit: 100,                   // taken off the total for "I paid for the last lime"
+    paidLastNote: "Total decreased for previously paid amount",    // keep in sync with PRICES in Code.gs
     jerseySizes: ["S", "M", "L", "XL", "2XL", "3XL"],  // keep in sync with SIZES in Code.gs
     presets: [100, 200, 300, 500],
     suggestedContribution: 200,
@@ -614,6 +621,7 @@
 
   const money = (n) => {
     const v = Number(n) || 0;
+    if (v < 0) return "-" + money(-v);
     return CONFIG.currency + v.toLocaleString("en-US", {
       minimumFractionDigits: Number.isInteger(v) ? 0 : 2,
       maximumFractionDigits: 2
@@ -693,6 +701,7 @@
     const amt = parseFloat(els.amount.value);
     return {
       lime: els.lime.checked,
+      paidLast: els.lime.checked && els.paidlast.checked,
       jersey: els.jersey.checked,
       contribute: els.contribute.checked,
       size: picked ? picked.value : "",
@@ -705,11 +714,13 @@
     if (s.lime) items.push(["The Lime", CONFIG.prices.lime]);
     if (s.jersey) items.push(["Jersey" + (s.size ? " (" + s.size + ")" : ""), CONFIG.prices.jersey]);
     if (s.contribute && s.amount) items.push(["Project contribution", s.amount]);
+    if (s.paidLast) items.push(["Paid for the last lime", -CONFIG.paidLastCredit]);
     return items;
   }
 
   function updateUI() {
     const s = readState();
+    $("#paid-extra").hidden = !s.lime;
     $("#size-extra").hidden = !s.jersey;
     $("#amount-extra").hidden = !s.contribute;
 
@@ -762,6 +773,9 @@
       id: submissionId,
       name, contact,
       lime: s.lime,
+      paidLast: s.paidLast,
+      total: lineItems(s).reduce((a, [, v]) => a + v, 0),
+      notes: s.paidLast ? CONFIG.paidLastNote : "",
       jersey: s.jersey,
       size: s.size,
       contribute: s.contribute,
